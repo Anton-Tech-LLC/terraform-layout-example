@@ -12,7 +12,7 @@ variable "env_prefix" {
 variable "project_affix" {
   description = "A 3-9 letter project affix used for resource naming"
   type        = string
-  default     = "Parrot"
+  default     = "Example"
   validation {
     condition     = length(var.project_affix) >= 3 && length(var.project_affix) <= 9
     error_message = "The project_affix value must be between 3 and 9 characters."
