@@ -53,7 +53,7 @@ module "virtual_network" {
 
   resource_group_name = local.resource_names.resource_group
   location            = var.location
-  vnet_name           = var.vnet_name
+  vnet_name           = local.resource_names.vnet
   address_space       = var.vnet_address_space
   subnet_names        = var.subnet_names
   subnet_prefixes     = var.subnet_prefixes

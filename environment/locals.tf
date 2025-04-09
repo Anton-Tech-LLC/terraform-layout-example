@@ -6,11 +6,11 @@ locals {
 
   # Resource naming convention
   resource_names = {
-    acr_name            = "Shr${local.project_affix}Acr"
-    storage_name        = lower("${local.naming_prefix}Sa")
-    keyvault_name       = "${local.naming_prefix}Kv"
-    resource_group_name = "rg-${local.project_affix}-${local.env_prefix}"
-    vnet_name           = "${local.naming_prefix}Vnet"
+    acr            = "Shr${local.project_affix}Acr"
+    storage        = lower("${local.naming_prefix}Sa")
+    keyvault       = "${local.naming_prefix}Kv"
+    resource_group = "rg-${local.project_affix}-${local.env_prefix}"
+    vnet           = "${local.naming_prefix}Vnet"
   }
 
   # Tags that will be applied to all resources
