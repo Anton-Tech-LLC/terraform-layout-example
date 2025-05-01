@@ -1,0 +1,60 @@
+stages:
+  - validate
+  - plan
+  - apply
+
+variables:
+  TF_VAR_FILE: ""
+  ENVIRONMENT: ""
+
+.terraform_job_template:
+  image: hashicorp/terraform:latest
+  before_script:
+    - export TF_VAR_FILE="./variables/${ENVIRONMENT}.tfvars"
+
+# Validation job that doesn't require backend
+validate:
+  stage: validate
+  extends: .terraform_job_template
+  variables:
+    TF_CLI_ARGS_init: "-backend=false"
+  script:
+    - terraform init -backend=false
+    - terraform validate
+    - terraform fmt -check
+  # rules:
+  #   - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+
+# Regular jobs with backend configuration
+terraform_plan:
+  stage: plan
+  extends: .terraform_job_template
+  parallel:
+    matrix:
+      - ENVIRONMENT: [dev, qa, prod]
+  script:
+    - terraform init -backend-config=./environment/backend/${ENVIRONMENT}.tfbackend
+    - terraform fmt -check
+    - terraform plan -var-file=${TF_VAR_FILE}
+  variables:
+    ARM_CLIENT_ID: ${AZURE_CLIENT_ID}
+    ARM_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+    ARM_SUBSCRIPTION_ID: ${AZURE_SUBSCRIPTION_ID}
+    ARM_TENANT_ID: ${AZURE_TENANT_ID}
+
+terraform_apply:
+  stage: apply
+  extends: .terraform_job_template
+  parallel:
+    matrix:
+      - ENVIRONMENT: [dev, qa, prod]
+  script:
+    - terraform init -backend-config=./environment/backend/${ENVIRONMENT}.tfbackend
+    - terraform apply -auto-approve -var-file=${TF_VAR_FILE}
+  variables:
+    ARM_CLIENT_ID: ${AZURE_CLIENT_ID}
+    ARM_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+    ARM_SUBSCRIPTION_ID: ${AZURE_SUBSCRIPTION_ID}
+    ARM_TENANT_ID: ${AZURE_TENANT_ID}
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
