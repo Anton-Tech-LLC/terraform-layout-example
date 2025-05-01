@@ -1,60 +1,69 @@
+# Simple GitLab CI Pipeline for Terraform
+# This pipeline validates, plans, and applies Terraform configurations
+
+# Define the stages in order of execution
 stages:
-  - validate
-  - plan
-  - apply
+  - validate  # Syntax checking and validation
+  - plan      # Generate and show execution plan
+  - apply     # Apply the changes
 
+# Common variables used across jobs
 variables:
-  TF_VAR_FILE: ""
-  ENVIRONMENT: ""
+  TF_VAR_FILE: ""       # Will hold the path to environment tfvars file
+  ENVIRONMENT: ""       # Will be set in the matrix (dev, qa, prod)
 
+# Template that all Terraform jobs will inherit from
 .terraform_job_template:
-  image: hashicorp/terraform:latest
+  image: hashicorp/terraform:latest  # Use the official Terraform Docker image
   before_script:
-    - export TF_VAR_FILE="./variables/${ENVIRONMENT}.tfvars"
+    - export TF_VAR_FILE="./variables/${ENVIRONMENT}.tfvars"  # Set the tfvars file path
 
-# Validation job that doesn't require backend
+# Validation job - runs without backend to check syntax
 validate:
   stage: validate
   extends: .terraform_job_template
   variables:
-    TF_CLI_ARGS_init: "-backend=false"
+    TF_CLI_ARGS_init: "-backend=false"  # Skip backend initialization
   script:
-    - terraform init -backend=false
-    - terraform validate
-    - terraform fmt -check
+    - terraform init -backend=false  # Initialize Terraform without backend
+    - terraform validate              # Validate configuration syntax
+    - terraform fmt -check           # Check formatting
   # rules:
-  #   - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+  #   - if: $CI_PIPELINE_SOURCE == 'merge_request_event'  # Run on merge requests
 
-# Regular jobs with backend configuration
+# Plan job - shows what changes would be made
 terraform_plan:
   stage: plan
   extends: .terraform_job_template
   parallel:
     matrix:
-      - ENVIRONMENT: [dev, qa, prod]
+      - ENVIRONMENT: [dev, qa, prod]  # Run for each environment
   script:
     - terraform init -backend-config=./environment/backend/${ENVIRONMENT}.tfbackend
     - terraform fmt -check
-    - terraform plan -var-file=${TF_VAR_FILE}
+    - terraform plan -var-file=${TF_VAR_FILE}  # Create execution plan
   variables:
+    # Azure credentials from GitLab CI/CD variables
     ARM_CLIENT_ID: ${AZURE_CLIENT_ID}
     ARM_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
     ARM_SUBSCRIPTION_ID: ${AZURE_SUBSCRIPTION_ID}
     ARM_TENANT_ID: ${AZURE_TENANT_ID}
 
+# Apply job - makes the actual changes
 terraform_apply:
   stage: apply
   extends: .terraform_job_template
   parallel:
     matrix:
-      - ENVIRONMENT: [dev, qa, prod]
+      - ENVIRONMENT: [dev, qa, prod]  # Run for each environment
   script:
     - terraform init -backend-config=./environment/backend/${ENVIRONMENT}.tfbackend
-    - terraform apply -auto-approve -var-file=${TF_VAR_FILE}
+    - terraform apply -auto-approve -var-file=${TF_VAR_FILE}  # Apply the changes
   variables:
+    # Azure credentials from GitLab CI/CD variables
     ARM_CLIENT_ID: ${AZURE_CLIENT_ID}
     ARM_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
     ARM_SUBSCRIPTION_ID: ${AZURE_SUBSCRIPTION_ID}
     ARM_TENANT_ID: ${AZURE_TENANT_ID}
   rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"  # Only apply on main branch push
